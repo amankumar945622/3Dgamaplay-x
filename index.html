@@ -17,120 +17,194 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 /* ---------- CAMERA ---------- */
-const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
-camera.position.set(0,5,8);
+const camera = new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,1000);
+camera.position.set(0,4.5,7);
 
 /* ---------- RENDERER ---------- */
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 /* ---------- LIGHT ---------- */
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
-const dirLight = new THREE.DirectionalLight(0xffffff,0.8);
+scene.add(new THREE.AmbientLight(0xffffff,0.45));
+const dirLight = new THREE.DirectionalLight(0xffffff,0.9);
 dirLight.position.set(10,20,10);
+dirLight.castShadow = true;
 scene.add(dirLight);
 
 /* ---------- GROUND ---------- */
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(200,200),
-  new THREE.MeshStandardMaterial({color:0x228b22})
+  new THREE.MeshStandardMaterial({color:0x2f8f2f})
 );
 ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
 scene.add(ground);
 
 /* ---------- WALL ---------- */
 const wall = new THREE.Mesh(
   new THREE.BoxGeometry(5,5,0.5),
-  new THREE.MeshStandardMaterial({color:0x888888})
+  new THREE.MeshStandardMaterial({color:0x777777})
 );
-wall.position.set(0,2.5,-5);
+wall.position.set(0,2.5,-6);
+wall.castShadow = true;
+wall.receiveShadow = true;
 scene.add(wall);
 
-/* ---------- HUMAN ---------- */
+/* ---------- HUMAN (IMPROVED STRUCTURE) ---------- */
 const human = new THREE.Group();
 scene.add(human);
 
-const skinMat = new THREE.MeshStandardMaterial({color:0xffccaa});
-const clothMat = new THREE.MeshStandardMaterial({color:0x333399});
-const eyeMat = new THREE.MeshStandardMaterial({color:0x000000});
+const skinMat = new THREE.MeshStandardMaterial({color:0xffc9a6, roughness:0.6});
+const clothMat = new THREE.MeshStandardMaterial({color:0x2e3fa8});
+const eyeMat = new THREE.MeshStandardMaterial({color:0x111111});
+
+/* pelvis */
+const pelvis = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.22,0.24,0.25,32),
+  clothMat
+);
+pelvis.position.y = 0.95;
+pelvis.castShadow = true;
+human.add(pelvis);
+
+/* torso */
+const torso = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.23,0.27,0.65,32),
+  skinMat
+);
+torso.position.y = 1.35;
+torso.castShadow = true;
+human.add(torso);
+
+/* chest */
+const chest = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.26,0.28,0.25,32),
+  skinMat
+);
+chest.position.y = 1.75;
+chest.castShadow = true;
+human.add(chest);
+
+/* neck */
+const neck = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.08,0.09,0.12,16),
+  skinMat
+);
+neck.position.y = 1.95;
+human.add(neck);
 
 /* head */
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.18,32,32), skinMat);
-head.position.y = 1.62;
+const head = new THREE.Mesh(
+  new THREE.SphereGeometry(0.18,32,32),
+  skinMat
+);
+head.position.y = 2.12;
+head.castShadow = true;
 human.add(head);
 
 /* eyes */
 const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.02,16,16), eyeMat);
 const eyeR = eyeL.clone();
-eyeL.position.set(-0.05,1.64,0.16);
-eyeR.position.set(0.05,1.64,0.16);
+eyeL.position.set(-0.05,2.14,0.16);
+eyeR.position.set(0.05,2.14,0.16);
 human.add(eyeL,eyeR);
 
-/* body */
-const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.24,0.8,32), skinMat);
-body.position.y = 1.1;
-human.add(body);
-
-/* underwear */
-const underwear = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.23,0.23,0.25,32),
-  clothMat
-);
-underwear.position.y = 0.8;
-human.add(underwear);
-
-/* arms */
-function arm(x){
-  const a = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05,0.06,0.6,16),
+/* shoulders */
+function shoulder(x){
+  const s = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08,16,16),
     skinMat
   );
-  a.position.set(x,1.2,0);
-  return a;
+  s.position.set(x,1.78,0);
+  return s;
 }
-const armR = arm(0.32);
-human.add(arm(-0.32),armR);
+human.add(shoulder(-0.35), shoulder(0.35));
 
-/* legs */
-function leg(x){
-  const l = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07,0.08,0.8,16),
+/* arms (upper + lower) */
+function arm(side){
+  const g = new THREE.Group();
+  const upper = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06,0.07,0.35,16),
     skinMat
   );
-  l.position.set(x,0.4,0);
-  return l;
+  upper.position.y = -0.18;
+
+  const lower = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05,0.06,0.35,16),
+    skinMat
+  );
+  lower.position.y = -0.55;
+
+  g.add(upper,lower);
+  g.position.set(side*0.35,1.75,0);
+  g.castShadow = true;
+  return g;
 }
-human.add(leg(-0.12),leg(0.12));
+const armL = arm(-1);
+const armR = arm(1);
+human.add(armL,armR);
+
+/* legs (thigh + calf + foot) */
+function leg(side){
+  const g = new THREE.Group();
+
+  const thigh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09,0.1,0.45,16),
+    skinMat
+  );
+  thigh.position.y = -0.25;
+
+  const calf = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07,0.08,0.45,16),
+    skinMat
+  );
+  calf.position.y = -0.7;
+
+  const foot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18,0.06,0.28),
+    skinMat
+  );
+  foot.position.set(0,-0.95,0.08);
+
+  g.add(thigh,calf,foot);
+  g.position.set(side*0.14,0.95,0);
+  g.castShadow = true;
+  return g;
+}
+human.add(leg(-1),leg(1));
 
 /* ---------- PHYSICS + HEALTH ---------- */
 let velocityY = 0;
-const gravity = -0.01;
+const gravity = -0.012;
 let health = 100;
 
 /* ---------- BLOOD ---------- */
 function bloodEffect(){
   const blood = new THREE.Mesh(
     new THREE.SphereGeometry(0.05,8,8),
-    new THREE.MeshStandardMaterial({color:0xff0000})
+    new THREE.MeshStandardMaterial({color:0xaa0000})
   );
   blood.position.copy(human.position);
+  blood.position.y += 1;
   scene.add(blood);
-  setTimeout(()=>scene.remove(blood),500);
+  setTimeout(()=>scene.remove(blood),400);
 }
 
 /* ---------- UPDATE ---------- */
 function update(){
   requestAnimationFrame(update);
 
-  /* idle arm */
-  armR.rotation.z = Math.sin(Date.now()*0.003)*0.2;
+  /* idle animation */
+  armR.rotation.z = Math.sin(Date.now()*0.003)*0.25;
+  armL.rotation.z = -Math.sin(Date.now()*0.003)*0.25;
 
   /* eye blink */
   eyeL.scale.y = eyeR.scale.y =
-    (Math.sin(Date.now()*0.01)>0.9)?0.1:1;
+    (Math.sin(Date.now()*0.01)>0.92)?0.1:1;
 
-  /* gravity ALWAYS ON */
+  /* gravity */
   velocityY += gravity;
   human.position.y += velocityY;
 
@@ -141,8 +215,8 @@ function update(){
   }
 
   /* wall collision */
-  if(human.position.z < -4.7){
-    human.position.z = -4.7;
+  if(human.position.z < -5.5){
+    human.position.z = -5.5;
   }
 
   /* demo damage */
@@ -153,7 +227,7 @@ function update(){
     }
   }
 
-  camera.lookAt(human.position);
+  camera.lookAt(human.position.clone().add(new THREE.Vector3(0,1.5,0)));
   renderer.render(scene,camera);
 }
 update();

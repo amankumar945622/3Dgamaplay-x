@@ -1,1 +1,289 @@
 
+<script>
+/* ================== COMPLETE UNIVERSAL 3D CHARACTER SYSTEM ================== */
+
+/* ---------- CHARACTER ID + NAME ---------- */
+let currentCharacterId = 1;
+let characterName = "Player";
+
+/* ---------- BASIC BODY DATA ---------- */
+const characterBody = {
+  height:5.6,
+  weight:55,
+  waist:30,
+  age:25,
+  fingers:5
+};
+
+/* ---------- CHARACTER STATE ---------- */
+let characterState = {
+  gender:"male",
+  alive:true,
+  eyesOpen:true,
+  swimming:false,
+  onGround:false,
+  attacking:false,
+  health:100
+};
+
+/* ---------- HAIR / BEARD / WEAR ---------- */
+let hairState = { bald:false, color:"#000", size:1 };
+let beardState = { enabled:false, color:"#000" };
+let wearState  = { dress:"", footwear:"" };
+
+/* ---------- THREE ---------- */
+let human, camera, mixer;
+let clock = new THREE.Clock();
+let velocityY = 0;
+let raycaster = new THREE.Raycaster();
+let moveSpeed = 0;
+
+/* ---------- EXTERNAL SCENE SAFE CHECK ---------- */
+let sceneRef = typeof scene !== "undefined" ? scene : null;
+
+/* ---------- LOAD CHARACTER ---------- */
+function loadCharacter(model){
+  human = model;
+  mixer = new THREE.AnimationMixer(human);
+  enableShadow();
+  loadSaved();
+  applySavedDress();
+  applySavedFootwear();
+}
+
+/* ---------- SHADOW ---------- */
+function enableShadow(){
+  human.traverse(p=>{
+    if(p.isMesh){
+      p.castShadow = true;
+      p.receiveShadow = true;
+    }
+  });
+}
+
+/* ---------- CAMERA FOLLOW ---------- */
+function updateCamera(){
+  if(!camera || !human) return;
+  let target = new THREE.Vector3(
+    human.position.x,
+    1.6,
+    human.position.z + 3
+  );
+  camera.position.lerp(target,0.1);
+  camera.lookAt(human.position);
+}
+
+/* ---------- GROUND CHECK ---------- */
+function groundCheck(){
+  if(!sceneRef || !human) return;
+  raycaster.set(human.position,new THREE.Vector3(0,-1,0));
+  let hit = raycaster.intersectObjects(sceneRef.children,true);
+  if(hit.length>0 && hit[0].distance<1){
+    characterState.onGround = true;
+    velocityY = 0;
+  } else {
+    characterState.onGround = false;
+  }
+}
+
+/* ---------- GRAVITY ---------- */
+function applyGravity(){
+  if(!characterState.onGround){
+    velocityY -= 0.02;
+    human.position.y += velocityY;
+  }
+}
+
+/* ---------- JUMP ---------- */
+function jump(){
+  if(!characterState.onGround) return;
+  velocityY = 0.35;
+  characterState.onGround = false;
+  playAnimation("jump");
+}
+
+/* ---------- MOVEMENT ---------- */
+function move(dir){
+  if(!characterState.alive) return;
+  moveSpeed = 0.12;
+
+  if(dir==="w") human.position.z -= moveSpeed;
+  if(dir==="s") human.position.z += moveSpeed;
+  if(dir==="a") human.position.x -= moveSpeed;
+  if(dir==="d") human.position.x += moveSpeed;
+
+  updateMoveAnimation();
+}
+
+function stopMove(){
+  moveSpeed = 0;
+  playAnimation("idle");
+}
+
+function updateMoveAnimation(){
+  if(moveSpeed===0) playAnimation("idle");
+  else playAnimation("walk");
+}
+
+/* ---------- KEYBOARD CONTROLS ---------- */
+document.addEventListener("keydown",e=>{
+  if(e.key==="w"||e.key==="a"||e.key==="s"||e.key==="d") move(e.key);
+  if(e.key===" ") jump();
+  if(e.key==="f") attack();
+});
+
+document.addEventListener("keyup",e=>{
+  if(["w","a","s","d"].includes(e.key)) stopMove();
+});
+
+/* ---------- EYES BLINK ---------- */
+setInterval(()=>{
+  if(!characterState.alive || !human) return;
+  toggleEyes(false);
+  setTimeout(()=>toggleEyes(true),200);
+},4000);
+
+function toggleEyes(open){
+  characterState.eyesOpen = open;
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("eye")){
+      p.visible = open;
+    }
+  });
+}
+
+/* ---------- DRESS SYSTEM ---------- */
+function wearDress(dressName){
+  wearState.dress = dressName;
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("dress")){
+      p.visible = p.name.toLowerCase().includes(dressName.toLowerCase());
+      p.scale.y = characterBody.height/5.6;
+    }
+  });
+}
+
+function removeDress(){
+  wearState.dress="";
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("dress")){
+      p.visible=false;
+    }
+  });
+}
+
+function applySavedDress(){
+  if(wearState.dress) wearDress(wearState.dress);
+}
+
+/* ---------- FOOTWEAR ---------- */
+function wearFootwear(name){
+  wearState.footwear = name;
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("shoe")){
+      p.visible = p.name.toLowerCase().includes(name.toLowerCase());
+    }
+  });
+}
+
+function applySavedFootwear(){
+  if(wearState.footwear) wearFootwear(wearState.footwear);
+}
+
+/* ---------- GENDER ---------- */
+function setGender(g){
+  characterState.gender = g;
+  if(g==="female") disableBeard();
+}
+
+/* ---------- BEARD ---------- */
+function enableBeard(color){
+  if(characterState.gender!=="male") return;
+  beardState.enabled=true;
+  beardState.color=color;
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("beard")){
+      p.visible=true;
+      p.material.color.set(color);
+    }
+  });
+}
+
+function disableBeard(){
+  beardState.enabled=false;
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("beard")){
+      p.visible=false;
+    }
+  });
+}
+
+/* ---------- ATTACK + BLOOD ---------- */
+function attack(){
+  if(!characterState.alive) return;
+  playAnimation("attack");
+  showBlood();
+}
+
+function showBlood(){
+  human.traverse(p=>{
+    if(p.isMesh && p.name.toLowerCase().includes("blood")){
+      p.visible=true;
+      setTimeout(()=>p.visible=false,500);
+    }
+  });
+}
+
+/* ---------- DAMAGE / DEATH ---------- */
+function damage(val){
+  characterState.health -= val;
+  showBlood();
+  if(characterState.health<=0) killCharacter();
+}
+
+function killCharacter(){
+  characterState.alive=false;
+  playAnimation("death");
+}
+
+/* ---------- SAVE / LOAD ---------- */
+function saveCharacter(){
+  localStorage.setItem("char_"+currentCharacterId,JSON.stringify({
+    body:characterBody,
+    state:characterState,
+    hair:hairState,
+    beard:beardState,
+    wear:wearState
+  }));
+}
+
+function loadSaved(){
+  let d = localStorage.getItem("char_"+currentCharacterId);
+  if(!d) return;
+  let data = JSON.parse(d);
+  Object.assign(characterState,data.state);
+  hairState = data.hair;
+  beardState = data.beard;
+  wearState = data.wear;
+}
+
+/* ---------- ANIMATION ---------- */
+function playAnimation(name){
+  if(!mixer || !human.animations) return;
+  let clip = THREE.AnimationClip.findByName(human.animations,name);
+  if(!clip) return;
+  mixer.stopAllAction();
+  mixer.clipAction(clip).play();
+}
+
+/* ---------- UPDATE LOOP ---------- */
+function update(){
+  requestAnimationFrame(update);
+  let delta = clock.getDelta();
+  if(mixer) mixer.update(delta);
+  applyGravity();
+  groundCheck();
+  updateCamera();
+}
+update();
+</script>

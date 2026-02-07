@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Gameplay X – File Three</title>
+<style>
+body{margin:0;overflow:hidden;}
+canvas{display:block;}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script>
+/* ---------- SCENE ---------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+/* ---------- CAMERA ---------- */
+const camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+camera.position.set(0,5,8);
+
+/* ---------- RENDERER ---------- */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ---------- LIGHT ---------- */
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff,0.8);
+dirLight.position.set(10,20,10);
+scene.add(dirLight);
+
+/* ---------- GROUND ---------- */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200,200),
+  new THREE.MeshStandardMaterial({color:0x228b22})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+/* ---------- WALL ---------- */
+const wall = new THREE.Mesh(
+  new THREE.BoxGeometry(5,5,0.5),
+  new THREE.MeshStandardMaterial({color:0x888888})
+);
+wall.position.set(0,2.5,-5);
+scene.add(wall);
+
+/* ---------- HUMAN ---------- */
+const human = new THREE.Group();
+scene.add(human);
+
+const skinMat = new THREE.MeshStandardMaterial({color:0xffccaa});
+const clothMat = new THREE.MeshStandardMaterial({color:0x333399});
+const eyeMat = new THREE.MeshStandardMaterial({color:0x000000});
+
+/* head */
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.18,32,32), skinMat);
+head.position.y = 1.62;
+human.add(head);
+
+/* eyes */
+const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.02,16,16), eyeMat);
+const eyeR = eyeL.clone();
+eyeL.position.set(-0.05,1.64,0.16);
+eyeR.position.set(0.05,1.64,0.16);
+human.add(eyeL,eyeR);
+
+/* body */
+const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.24,0.8,32), skinMat);
+body.position.y = 1.1;
+human.add(body);
+
+/* underwear */
+const underwear = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.23,0.23,0.25,32),
+  clothMat
+);
+underwear.position.y = 0.8;
+human.add(underwear);
+
+/* arms */
+function arm(x){
+  const a = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05,0.06,0.6,16),
+    skinMat
+  );
+  a.position.set(x,1.2,0);
+  return a;
+}
+const armR = arm(0.32);
+human.add(arm(-0.32),armR);
+
+/* legs */
+function leg(x){
+  const l = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07,0.08,0.8,16),
+    skinMat
+  );
+  l.position.set(x,0.4,0);
+  return l;
+}
+human.add(leg(-0.12),leg(0.12));
+
+/* ---------- PHYSICS + HEALTH ---------- */
+let velocityY = 0;
+const gravity = -0.01;
+let health = 100;
+
+/* ---------- BLOOD ---------- */
+function bloodEffect(){
+  const blood = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05,8,8),
+    new THREE.MeshStandardMaterial({color:0xff0000})
+  );
+  blood.position.copy(human.position);
+  scene.add(blood);
+  setTimeout(()=>scene.remove(blood),500);
+}
+
+/* ---------- UPDATE ---------- */
+function update(){
+  requestAnimationFrame(update);
+
+  /* idle arm */
+  armR.rotation.z = Math.sin(Date.now()*0.003)*0.2;
+
+  /* eye blink */
+  eyeL.scale.y = eyeR.scale.y =
+    (Math.sin(Date.now()*0.01)>0.9)?0.1:1;
+
+  /* gravity ALWAYS ON */
+  velocityY += gravity;
+  human.position.y += velocityY;
+
+  /* ground collision */
+  if(human.position.y <= 0){
+    human.position.y = 0;
+    velocityY = 0;
+  }
+
+  /* wall collision */
+  if(human.position.z < -4.7){
+    human.position.z = -4.7;
+  }
+
+  /* demo damage */
+  if(Math.floor(Date.now()/3000)%2===0){
+    if(health>0){
+      health -= 0.05;
+      bloodEffect();
+    }
+  }
+
+  camera.lookAt(human.position);
+  renderer.render(scene,camera);
+}
+update();
+
+/* ---------- RESIZE ---------- */
+window.addEventListener("resize",()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+</script>
+
+</body>
+</html>

@@ -1,95 +1,57 @@
-/* HEAD (REALISTIC BASE) */
-const headGroup = new THREE.Group();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GLB Character Test</title>
+<style>
+body{margin:0;overflow:hidden;}
+canvas{display:block;}
+</style>
+</head>
+<body>
 
-/* SKULL (OVAL SHAPE) */
-const skull = new THREE.Mesh(
-  new THREE.SphereGeometry(0.27, 32, 32),
-  skin
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222222);
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
 );
-skull.scale.set(1, 1.25, 0.95);
-skull.position.y = 3.28;
-headGroup.add(skull);
+camera.position.set(0, 1.6, 3);
 
-/* JAW (CURVED, NOT BOX) */
-const jaw = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.18, 0.22, 0.25, 20),
-  skin
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* light */
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+/* load model */
+const loader = new THREE.GLTFLoader();
+loader.load(
+  'model.glb',
+  function (gltf) {
+    const model = gltf.scene;
+    model.scale.set(1,1,1);
+    scene.add(model);
+  }
 );
-jaw.position.y = 3.05;
-jaw.scale.z = 0.9;
-headGroup.add(jaw);
 
-/* NOSE (BRIDGE + TIP FEEL) */
-const noseBridge = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.04, 0.05, 0.16, 12),
-  skin
-);
-noseBridge.rotation.x = Math.PI / 2;
-noseBridge.position.set(0, 3.28, 0.32);
-headGroup.add(noseBridge);
-
-const noseTip = new THREE.Mesh(
-  new THREE.SphereGeometry(0.045, 12, 12),
-  skin
-);
-noseTip.position.set(0, 3.24, 0.39);
-headGroup.add(noseTip);
-
-/* EYES */
-const eyeWhite = new THREE.MeshStandardMaterial({ color: 0xf2f2f2 });
-const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-
-function eye(x) {
-  const g = new THREE.Group();
-  const white = new THREE.Mesh(
-    new THREE.SphereGeometry(0.045, 16, 16),
-    eyeWhite
-  );
-  white.scale.z = 0.85;
-
-  const pupil = new THREE.Mesh(
-    new THREE.SphereGeometry(0.02, 12, 12),
-    pupilMat
-  );
-  pupil.position.z = 0.035;
-
-  g.add(white, pupil);
-  g.position.set(x, 3.32, 0.26);
-  return g;
+function animate(){
+  requestAnimationFrame(animate);
+  renderer.render(scene,camera);
 }
+animate();
+</script>
 
-headGroup.add(eye(-0.095));
-headGroup.add(eye(0.095));
-
-/* EYEBROWS (ADDED DIRECTLY IN yt PROJECT) */
-const browMat = new THREE.MeshStandardMaterial({
-  color: 0x2b1b12,
-  roughness: 0.9
-});
-
-function eyebrow(x, tilt) {
-  const brow = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.015, 0.018, 0.22, 12),
-    browMat
-  );
-  brow.rotation.x = Math.PI / 2;
-  brow.rotation.z = tilt;
-  brow.position.set(x, 3.38, 0.22);
-  headGroup.add(brow);
-}
-
-eyebrow(-0.095, 0.12);
-eyebrow(0.095, -0.12);
-
-/* MOUTH */
-const mouth = new THREE.Mesh(
-  new THREE.TorusGeometry(0.09, 0.015, 8, 20, Math.PI),
-  new THREE.MeshStandardMaterial({ color: 0x8b3a3a })
-);
-mouth.rotation.x = Math.PI;
-mouth.position.set(0, 3.12, 0.28);
-headGroup.add(mouth);
-
-/* HEAD ATTACH */
-human.add(headGroup);
-
+</body>
+</html>

@@ -1,122 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
 <meta charset="UTF-8">
-<title>GLB Character – Optimized Game Ready</title>
+<title>खुला शहर गेमप्ले – Corrector सिस्टम</title>
 <style>
-body{margin:0;overflow:hidden;background:#111;}
+body{margin:0;overflow:hidden;background:#87ceeb;}
 canvas{display:block;}
+#hud{
+position:fixed;left:10px;top:10px;
+color:#fff;font-family:Arial;
+background:rgba(0,0,0,.4);
+padding:8px;border-radius:6px;
+}
+#genderBox{
+position:fixed;right:10px;top:10px;
+background:rgba(0,0,0,.4);
+padding:8px;border-radius:6px;
+color:#fff;
+}
+button{margin:2px;}
 </style>
 </head>
 <body>
 
+<div id="hud">
+स्वास्थ्य: <span id="hp">100</span>
+</div>
+
+<div id="genderBox">
+खिलाड़ी चुनें:<br>
+<button onclick="setGender('male')">Male</button>
+<button onclick="setGender('female')">Female</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
 
 <script>
 /* SCENE */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x151515);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87ceeb);
 
 /* CAMERA */
-const camera = new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,80);
-camera.position.set(0,1.6,2.6);
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,500);
+camera.position.set(0,3,6);
 
-/* RENDERER – PERFORMANCE TUNED */
-const renderer = new THREE.WebGLRenderer({antialias:false});
+/* RENDERER */
+const renderer=new THREE.WebGLRenderer({antialias:false});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.25));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.NoToneMapping;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));
+renderer.shadowMap.enabled=true;
 document.body.appendChild(renderer.domElement);
 
-/* CONTROLS */
-const controls = new THREE.OrbitControls(camera,renderer.domElement);
-controls.enableDamping = true;
-controls.enablePan = false;
-controls.minDistance = 1.8;
-controls.maxDistance = 3.2;
-controls.maxPolarAngle = Math.PI/2.1;
-controls.target.set(0,1.4,0);
-controls.update();
+/* LIGHTS */
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.6));
+const sun=new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(50,100,50);
+sun.castShadow=true;
+scene.add(sun);
 
-/* LIGHTS – REDUCED */
-scene.add(new THREE.HemisphereLight(0xffffff,0x333333,0.45));
-
-const key = new THREE.DirectionalLight(0xffffff,1);
-key.position.set(3,5,3);
-key.castShadow = true;
-key.shadow.mapSize.set(1024,1024);
-scene.add(key);
-
-/* FLOOR – SIMPLE */
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(10,10),
-  new THREE.MeshStandardMaterial({color:0x1c1c1c,roughness:1})
+/* GROUND */
+const ground=new THREE.Mesh(
+new THREE.PlaneGeometry(500,500),
+new THREE.MeshStandardMaterial({color:0x3a3a3a})
 );
-floor.rotation.x = -Math.PI/2;
-floor.receiveShadow = true;
-scene.add(floor);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
 
-/* MODEL */
-const loader = new THREE.GLTFLoader();
-let mixer;
+/* LOADER & DATA */
+const loader=new THREE.GLTFLoader();
+let controlled=null;
+let currentGender=null;
+const correctors=[];
 
-loader.load("model.glb",(gltf)=>{
-  const model = gltf.scene;
+/* GENDER SET FUNCTION */
+function setGender(type){
+if(currentGender===type) return;
 
-  /* AUTO SCALE */
-  const box = new THREE.Box3().setFromObject(model);
-  const height = box.max.y - box.min.y;
-  model.scale.setScalar(1.75/height);
+if(controlled){
+scene.remove(controlled);
+controlled=null;
+}
 
-  model.traverse(obj=>{
-    if(obj.isMesh){
-      obj.castShadow = true;
-      obj.receiveShadow = false;
+currentGender=type;
+const file = type==="male" ? "player_male.glb" : "player_female.glb";
 
-      if(obj.material && obj.material.isMeshStandardMaterial){
-        obj.material.metalness = 0;
-        obj.material.roughness = 0.7;
-        obj.material.envMapIntensity = 0;
-      }
-
-      if(obj.material.map){
-        obj.material.map.colorSpace = THREE.SRGBColorSpace;
-        obj.material.map.anisotropy = 1;
-      }
-    }
-  });
-
-  scene.add(model);
-
-  /* ANIMATION – SINGLE CLIP ONLY */
-  if(gltf.animations.length){
-    mixer = new THREE.AnimationMixer(model);
-    mixer.clipAction(gltf.animations[0]).play();
-  }
+loader.load(file,gltf=>{
+controlled=gltf.scene;
+controlled.scale.setScalar(1);
+scene.add(controlled);
 });
+}
+
+/* ADD CORRECTOR (STATIC) */
+function addCorrector(pos){
+loader.load("corrector.glb",gltf=>{
+const npc=gltf.scene;
+npc.position.copy(pos);
+npc.userData.isCorrector=true;
+scene.add(npc);
+correctors.push(npc);
+});
+}
+
+addCorrector(new THREE.Vector3(5,0,5));
+addCorrector(new THREE.Vector3(-6,0,3));
 
 /* RESIZE */
 addEventListener("resize",()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
+camera.aspect=innerWidth/innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(innerWidth,innerHeight);
 });
 
 /* LOOP */
-const clock = new THREE.Clock();
 function animate(){
-  requestAnimationFrame(animate);
-  if(mixer) mixer.update(clock.getDelta());
-  controls.update();
-  renderer.render(scene,camera);
+requestAnimationFrame(animate);
+
+/* CAMERA FOLLOW PLAYER */
+if(controlled){
+camera.position.lerp(
+new THREE.Vector3(
+controlled.position.x,
+controlled.position.y+3,
+controlled.position.z+6
+),0.1);
+camera.lookAt(controlled.position);
+}
+
+renderer.render(scene,camera);
 }
 animate();
 </script>
-
 </body>
 </html>
